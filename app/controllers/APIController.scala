@@ -230,10 +230,14 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 		
 	}
 
-	def getHitList(searchQuery: String, startDate: String, endDate: String, fromIndex: Int, queryMode: String, queryTranslated: Boolean) = Action.async {
+	def getHitList(searchQuery: String, startDate: String, endDate: String, fromIndex: Int, queryMode: String, queryTranslated: Boolean, sortField: String, sortOrder: String) = Action.async {
 
 		// Check query mode
 		val parsedQueryMode = checkQueryMode(queryMode)
+
+		// Check sort mode
+		val parsedSortField = checkSortField(sortField)
+		val parsedSortOrder = checkSortOrder(sortOrder)
 
 		// Parse date span
 		val dateSpan = dateParser(startDate, endDate)
@@ -258,7 +262,7 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 			// Create and make query
 			var futureFinalList: ListBuffer[Future[(JsObject,QueryObject)]] = ListBuffer()
 			for (qbl <- queryObjectList) {
-				var queryData: JsObject = createHitListQuery(qbl, dateSpan, fromIndex, parsedQueryMode, queryTranslated)
+				var queryData: JsObject = createHitListQuery(qbl, dateSpan, fromIndex, parsedQueryMode, queryTranslated, parsedSortField, parsedSortOrder)
 				//print('\n')
 				//println(parsedQueryMode)
 				//println(Json.prettyPrint(queryData))
@@ -284,7 +288,7 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 	/*
 	 * Query functions
 	 */
-	def createHitListQuery(queryObject: QueryObject, dateSpan: DateSpan, fromIndex: Int, queryMode: String, queryTranslated: Boolean) : JsObject = {
+	def createHitListQuery(queryObject: QueryObject, dateSpan: DateSpan, fromIndex: Int, queryMode: String, queryTranslated: Boolean, sortField: String, sortOrder: String) : JsObject = {
 
 		// Create query object
 		var queryFilter: JsObject = Json.obj(
@@ -293,6 +297,24 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 				"filter" -> (getBoolFilterExists() ++ getBoolFilterTerms(queryObject) ++ getBoolFilterDates(dateSpan))
 			)
 		)
+
+		// Create sort object
+		var sortObject: JsArray = Json.arr()
+		if (sortOrder != "") {
+			sortObject = Json.arr(
+				Json.obj(
+					sortField -> Json.obj(
+						"order" -> sortOrder
+					)
+				),
+				"page_idx"
+			)
+		} else {
+			sortObject = Json.arr(
+				sortField,
+				"page_idx"
+			)
+		}
 
 		return Json.obj(
 			"from" -> fromIndex,
@@ -306,7 +328,8 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 					config.getString("TEXT_FIELD_ORIGINAL").get -> Json.obj(),
 					config.getString("TEXT_FIELD_TRANSLATED").get -> Json.obj()
 				)
-			)
+			),
+			"sort" -> sortObject
 		)
 
 	}
@@ -381,7 +404,6 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 			var scriptQuery: String = ""
 
 			if (queryObject.queryTerms.length > 1 && queryMode == config.getString("QM_EXACT").get) {
-				println(config.getString("QM_EXACT").get)
 				scriptQuery = "_index['" + termFreqField + ".shingles']['" + queryObject.queryTerms.map(_.analyzedTerm).mkString(" ") + "'].tf()"
 			} else {
 				for (qt <- queryObject.queryTerms) {
@@ -680,7 +702,7 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 		// Add filter for authors
 		var specialAuthorFilter: JsArray = Json.toJson(
 			queryObject.queryFilters.filter(fl =>
-				if (fl.key == config.getString("FILTER_MAPPING_SPECIAL").get) {
+				if (config.getStringList("FILTER_MAPPING_SPECIAL").get.contains(fl.key)) {
 					true
 				} else {
 					false
@@ -711,7 +733,7 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 
 		return Json.toJson(
 			queryObject.queryFilters.filter(fl =>
-				if (fl.key == config.getString("FILTER_MAPPING_SPECIAL").get) {
+				if (config.getStringList("FILTER_MAPPING_SPECIAL").get.contains(fl.key)) {
 					false
 				} else {
 					true
@@ -951,6 +973,28 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 
 	}
 
+	// Check sort field
+	def checkSortField(sortField: String) : String = {
+
+		if (config.getString("SORT_MODE." + sortField) == None) {
+			return config.getString("SORT_MODE.score").get
+		} else {
+			return config.getString("SORT_MODE." + sortField).get
+		}
+
+	}
+
+	// Check sort order
+	def checkSortOrder(sortOrder: String) : String = {
+
+		if (sortOrder != "asc" && sortOrder != "desc") {
+			return ""
+		} else {
+			return sortOrder
+		}
+
+	}
+
 	// Parse start and end date.
 	def dateParser(startDate: String, endDate: String) : DateSpan = {
 
@@ -962,7 +1006,7 @@ class APIController @Inject() (ws: WSClient, config: play.api.Configuration) ext
 
 		var dateFormatter: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, dateParsers).toFormatter();
 		var startDateObject: DateTime = dateFormatter.parseDateTime(startDate)
-		var endDateObject: DateTime = dateFormatter.parseDateTime(endDate)
+		var endDateObject: DateTime = dateFormatter.parseDateTime(endDate).withMonthOfYear(12).withDayOfMonth(31)
 
 		return DateSpan(startDateObject, endDateObject)
 

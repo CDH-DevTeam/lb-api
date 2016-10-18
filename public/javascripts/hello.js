@@ -38,7 +38,7 @@ if (window.console) {
 		}
 	}
 
-	//entry = 'sverige'
+	entry = 'stad'
 
 	//window.open('http://0.0.0.0:9000/barchart?searchQuery=' + entry + '&startDate=1500&endDate=2017&queryMode=exact&aggField=författare','_blank');
 
@@ -49,6 +49,12 @@ if (window.console) {
 
 
 	//http_req.open('GET', 'http://0.0.0.0:9000/timeline/aggs?searchQuery=' + entry + '&queryMode=exact', false);
+	//http_req.send();
+
+	//http_req.open('GET', 'http://0.0.0.0:9000/barchart?searchQuery=' + entry + '&startDate=1600&endDate=2016&queryMode=exact&aggField=works', false);
+	//http_req.send();
+
+	//http_req.open('GET', 'http://0.0.0.0:9000/hitlist?searchQuery=' + entry + '&startDate=1954&endDate=1955&fromIndex=20&queryMode=exact&sortField=date&sortOrder=asc', false);
 	//http_req.send();
 
 	//http_req.open('GET', 'http://0.0.0.0:9000/timeline/total', false);

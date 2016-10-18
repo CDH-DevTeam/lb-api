@@ -14,4 +14,4 @@ GET		/timeline/aggs			controllers.APIController.getTimelineAggs(searchQuery: Str
 
 GET		/barchart				controllers.APIController.getBarchart(searchQuery: String, startDate: String, endDate: String, queryMode: String ?= "exact", queryTranslated: Boolean ?= false, aggField: String ?= "authors")
 
-GET		/hitlist				controllers.APIController.getHitList(searchQuery: String, startDate: String, endDate: String, fromIndex: Int ?= 0, queryMode: String ?= "exact", queryTranslated: Boolean ?= false)
+GET		/hitlist				controllers.APIController.getHitList(searchQuery: String, startDate: String, endDate: String, fromIndex: Int ?= 0, queryMode: String ?= "exact", queryTranslated: Boolean ?= false, sortField: String ?= "score", sortOrder: String ?= "")
